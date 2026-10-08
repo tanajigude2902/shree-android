@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">SHREE</string>
     <string name="tagline">Personal AI Operating System</string>
-    <string name="wake_prompt">Say "Hey Shree" or tap the core</string>
+    <string name="wake_prompt">Say \"Hey Shree\" or tap the core</string>
     <string name="status_idle">SHREE Ready</string>
     <string name="status_listening">Listening…</string>
     <string name="status_thinking">Thinking…</string>
