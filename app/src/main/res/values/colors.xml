@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="shree_primary">#00E5FF</color>
+    <color name="shree_primary_variant">#00B0FF</color>
+    <color name="shree_secondary">#7C4DFF</color>
+    <color name="shree_background">#0A0E17</color>
+    <color name="shree_surface">#131B2E</color>
+</resources>
