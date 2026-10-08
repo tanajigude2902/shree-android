@@ -1,0 +1,8 @@
+-keepattributes Signature
+-keepattributes *Annotation*
+-keep class com.google.gson.** { *; }
+-keep class com.shree.ai.data.model.** { *; }
+-keep class com.shree.ai.core.ai.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keep class androidx.security.crypto.** { *; }
