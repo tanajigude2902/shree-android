@@ -8,4 +8,5 @@
     <string name="status_speaking">Speaking…</string>
     <string name="status_executing">Executing Action…</string>
     <string name="status_error">Needs Attention</string>
+    <string name="accessibility_description">SHREE uses this service to perform voice-commanded screen navigation, clicks, and app control on your behalf.</string>
 </resources>
