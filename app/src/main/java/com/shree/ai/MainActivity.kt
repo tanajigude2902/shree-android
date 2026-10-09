@@ -620,11 +620,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
                     ) {
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        AnimatedCoreOrb(
+                        HolographicShreeAvatar(
                             state = coreState,
                             theme = currentTheme,
-                            size = 125.dp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(235.dp),
                             onClick = { if (isListening) stopListening() else startSpeechInput() }
+                        ) stopListening() else startSpeechInput() }
                         )
 
                         Text(
@@ -834,29 +837,63 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
             }
         }
     }
-
     @Composable
-    fun AnimatedCoreOrb(state: CoreOrbState, theme: SciFiTheme, size: Dp = 125.dp, onClick: () -> Unit) {
-        val infiniteTransition = rememberInfiniteTransition(label = "OrbMotion")
+    fun HolographicShreeAvatar(
+        state: CoreOrbState,
+        theme: SciFiTheme,
+        modifier: Modifier = Modifier,
+        onClick: () -> Unit
+    ) {
+        val infiniteTransition = rememberInfiniteTransition(label = "ShreeHoloAvatar")
 
-        val pulseScale by infiniteTransition.animateFloat(
-            initialValue = 0.92f,
-            targetValue = 1.08f,
+        val breathOffset by infiniteTransition.animateFloat(
+            initialValue = -5f,
+            targetValue = 5f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = if (state == CoreOrbState.SPEAKING) 700 else 1800, easing = LinearEasing),
+                animation = tween(2800, easing = LinearEasing),
                 repeatMode = RepeatMode.Reverse
             ),
-            label = "OrbScale"
+            label = "BreathMotion"
         )
 
-        val rotationAngle by infiniteTransition.animateFloat(
+        val handGestureAngle by infiniteTransition.animateFloat(
+            initialValue = -12f,
+            targetValue = 18f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(if (state == CoreOrbState.SPEAKING) 1200 else 3200, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "HandGesture"
+        )
+
+        val lipSyncFactor by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(if (state == CoreOrbState.SPEAKING) 160 else 2400, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "LipSync"
+        )
+
+        val particleFlight by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(4200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "ParticleFlight"
+        )
+
+        val scanRotation by infiniteTransition.animateFloat(
             initialValue = 0f,
             targetValue = 360f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = if (state == CoreOrbState.THINKING) 2500 else 8000, easing = LinearEasing),
+                animation = tween(8000, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart
             ),
-            label = "OrbRotation"
+            label = "ScanRotation"
         )
 
         val coreColor = when (state) {
@@ -867,34 +904,219 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
             CoreOrbState.ERROR -> Color(0xFFFF1744)
         }
 
-        Box(modifier = Modifier.size(size).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
-            Canvas(modifier = Modifier.size(size)) {
-                val center = Offset(size.toPx() / 2f, size.toPx() / 2f)
-                val baseRadius = (size.toPx() / 2.6f) * pulseScale
+        Box(
+            modifier = modifier.clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val cx = w / 2f
+                val cy = (h * 0.44f) + breathOffset.dp.toPx()
+                val baseY = h * 0.90f
 
-                drawCircle(
-                    brush = Brush.radialGradient(colors = listOf(coreColor.copy(alpha = 0.35f), Color.Transparent), center = center, radius = baseRadius * 1.4f),
-                    center = center,
-                    radius = baseRadius * 1.4f
+                // Projector Light Beam Cone
+                val beamPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx - 65.dp.toPx(), baseY)
+                    lineTo(cx - 105.dp.toPx(), 8.dp.toPx())
+                    lineTo(cx + 105.dp.toPx(), 8.dp.toPx())
+                    lineTo(cx + 65.dp.toPx(), baseY)
+                    close()
+                }
+                drawPath(
+                    path = beamPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color.Transparent, coreColor.copy(alpha = 0.06f), coreColor.copy(alpha = 0.20f)),
+                        startY = 0f,
+                        endY = baseY
+                    )
                 )
 
-                val ringRadius = baseRadius + 10.dp.toPx()
-                drawCircle(color = coreColor.copy(alpha = 0.4f), center = center, radius = ringRadius, style = Stroke(width = 2f))
+                // Isometric Projection Pedestal
+                val platformPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx, baseY - 14.dp.toPx())
+                    lineTo(cx + 105.dp.toPx(), baseY + 8.dp.toPx())
+                    lineTo(cx, baseY + 26.dp.toPx())
+                    lineTo(cx - 105.dp.toPx(), baseY + 8.dp.toPx())
+                    close()
+                }
+                drawPath(platformPath, brush = Brush.radialGradient(listOf(coreColor.copy(alpha = 0.5f), Color.Transparent), center = Offset(cx, baseY)))
+                drawPath(platformPath, color = coreColor.copy(alpha = 0.85f), style = Stroke(width = 2.dp.toPx()))
 
-                for (j in 0 until 4) {
-                    val angleDeg = rotationAngle + (j * 90f)
-                    val angleRad = Math.toRadians(angleDeg.toDouble())
-                    val nx = center.x + (ringRadius * cos(angleRad)).toFloat()
-                    val ny = center.y + (ringRadius * sin(angleRad)).toFloat()
-                    drawCircle(color = coreColor, center = Offset(nx, ny), radius = 3.dp.toPx())
+                // Inner Radiant Ring
+                drawOval(
+                    color = coreColor.copy(alpha = 0.6f),
+                    topLeft = Offset(cx - 52.dp.toPx(), baseY - 4.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(104.dp.toPx(), 22.dp.toPx()),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+
+                // Flying Particles & Constellation Web
+                val particlePoints = mutableListOf<Offset>()
+                for (i in 0 until 20) {
+                    val xBase = ((i * 23) % 220) - 110f
+                    val speed = 0.8f + ((i % 4) * 0.18f)
+                    val phase = (i * 0.17f) % 1.0f
+                    val progress = (particleFlight * speed + phase) % 1.0f
+                    val px = cx + (xBase.dp.toPx()) + (sin(Math.toRadians((scanRotation * speed + i * 20).toDouble())) * 12.dp.toPx()).toFloat()
+                    val py = baseY - (progress * (h * 0.84f))
+                    val pAlpha = (sin(progress * Math.PI).toFloat()).coerceIn(0.15f, 0.95f)
+                    val pt = Offset(px, py)
+                    particlePoints.add(pt)
+
+                    drawCircle(color = coreColor.copy(alpha = pAlpha), radius = (1.5f + (i % 3) * 0.8f).dp.toPx(), center = pt)
                 }
 
-                drawCircle(
-                    brush = Brush.radialGradient(colors = listOf(Color.White, coreColor, coreColor.copy(alpha = 0.3f)), center = center, radius = baseRadius),
-                    center = center,
-                    radius = baseRadius
+                for (i in 0 until particlePoints.size step 2) {
+                    val p1 = particlePoints[i]
+                    val p2 = particlePoints.getOrNull(i + 1) ?: continue
+                    val dx = p1.x - p2.x
+                    val dy = p1.y - p2.y
+                    val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                    if (dist < 55.dp.toPx()) {
+                        val lineAlpha = ((1f - dist / 55.dp.toPx()) * 0.35f).coerceIn(0.05f, 0.35f)
+                        drawLine(color = coreColor.copy(alpha = lineAlpha), start = p1, end = p2, strokeWidth = 1.dp.toPx())
+                    }
+                }
+
+                // Left Floating HUD (Diagnostics)
+                val hudLeftX = cx - 118.dp.toPx()
+                val hudLeftY = cy - 25.dp.toPx() + (breathOffset * 0.4f).dp.toPx()
+                drawRoundRect(color = coreColor.copy(alpha = 0.14f), topLeft = Offset(hudLeftX, hudLeftY), size = androidx.compose.ui.geometry.Size(44.dp.toPx(), 32.dp.toPx()), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx()))
+                drawRoundRect(color = coreColor.copy(alpha = 0.6f), topLeft = Offset(hudLeftX, hudLeftY), size = androidx.compose.ui.geometry.Size(44.dp.toPx(), 32.dp.toPx()), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx()), style = Stroke(width = 1.dp.toPx()))
+                drawLine(coreColor.copy(0.8f), Offset(hudLeftX + 5.dp.toPx(), hudLeftY + 8.dp.toPx()), Offset(hudLeftX + 26.dp.toPx(), hudLeftY + 8.dp.toPx()), 1.2.dp.toPx())
+                drawLine(coreColor.copy(0.8f), Offset(hudLeftX + 5.dp.toPx(), hudLeftY + 15.dp.toPx()), Offset(hudLeftX + 36.dp.toPx(), hudLeftY + 15.dp.toPx()), 1.2.dp.toPx())
+                drawLine(coreColor.copy(0.8f), Offset(hudLeftX + 5.dp.toPx(), hudLeftY + 22.dp.toPx()), Offset(hudLeftX + 18.dp.toPx(), hudLeftY + 22.dp.toPx()), 1.2.dp.toPx())
+
+                // Right Floating HUD (Audio Frequency Waves)
+                val hudRightX = cx + 76.dp.toPx()
+                val hudRightY = cy - 36.dp.toPx() - (breathOffset * 0.4f).dp.toPx()
+                drawRoundRect(color = theme.secondary.copy(alpha = 0.14f), topLeft = Offset(hudRightX, hudRightY), size = androidx.compose.ui.geometry.Size(46.dp.toPx(), 34.dp.toPx()), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx()))
+                drawRoundRect(color = theme.secondary.copy(alpha = 0.6f), topLeft = Offset(hudRightX, hudRightY), size = androidx.compose.ui.geometry.Size(46.dp.toPx(), 34.dp.toPx()), cornerRadius = androidx.compose.ui.geometry.CornerRadius(4.dp.toPx(), 4.dp.toPx()), style = Stroke(width = 1.dp.toPx()))
+                for (b in 0..4) {
+                    val barH = (6 + (sin((scanRotation * 0.15f + b * 1.2).toDouble()) * 9).toInt().coerceAtLeast(3)).dp.toPx()
+                    drawLine(color = theme.secondary.copy(alpha = 0.85f), start = Offset(hudRightX + (7 + b * 8).dp.toPx(), hudRightY + 26.dp.toPx()), end = Offset(hudRightX + (7 + b * 8).dp.toPx(), hudRightY + 26.dp.toPx() - barH), strokeWidth = 2.5.dp.toPx())
+                }
+
+                // Female Silhouette & Low-Poly Crystalline Facets
+                val chestY = cy + 6.dp.toPx()
+                val waistY = cy + 42.dp.toPx()
+                val hipsY = cy + 72.dp.toPx()
+
+                val bodySilhouette = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx - 32.dp.toPx(), cy - 6.dp.toPx())
+                    lineTo(cx + 32.dp.toPx(), cy - 6.dp.toPx())
+                    lineTo(cx + 20.dp.toPx(), chestY + 12.dp.toPx())
+                    lineTo(cx + 15.dp.toPx(), waistY)
+                    lineTo(cx + 26.dp.toPx(), hipsY)
+                    lineTo(cx - 26.dp.toPx(), hipsY)
+                    lineTo(cx - 15.dp.toPx(), waistY)
+                    lineTo(cx - 20.dp.toPx(), chestY + 12.dp.toPx())
+                    close()
+                }
+                drawPath(path = bodySilhouette, brush = Brush.verticalGradient(listOf(coreColor.copy(alpha = 0.28f), coreColor.copy(alpha = 0.18f), coreColor.copy(alpha = 0.40f)), startY = cy - 10.dp.toPx(), endY = hipsY))
+
+                // Facet Wireframe Lines
+                drawLine(coreColor.copy(0.7f), Offset(cx - 32.dp.toPx(), cy - 6.dp.toPx()), Offset(cx, chestY), 1.dp.toPx())
+                drawLine(coreColor.copy(0.7f), Offset(cx + 32.dp.toPx(), cy - 6.dp.toPx()), Offset(cx, chestY), 1.dp.toPx())
+                drawLine(coreColor.copy(0.7f), Offset(cx - 15.dp.toPx(), waistY), Offset(cx, chestY), 1.dp.toPx())
+                drawLine(coreColor.copy(0.7f), Offset(cx + 15.dp.toPx(), waistY), Offset(cx, chestY), 1.dp.toPx())
+                drawLine(coreColor.copy(0.7f), Offset(cx - 26.dp.toPx(), hipsY), Offset(cx, waistY), 1.dp.toPx())
+                drawLine(coreColor.copy(0.7f), Offset(cx + 26.dp.toPx(), hipsY), Offset(cx, waistY), 1.dp.toPx())
+                drawLine(coreColor.copy(0.5f), Offset(cx - 15.dp.toPx(), waistY), Offset(cx + 15.dp.toPx(), waistY), 1.dp.toPx())
+
+                // Radiant Core Heart Gem
+                val gemPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx, chestY - 7.dp.toPx())
+                    lineTo(cx + 6.dp.toPx(), chestY)
+                    lineTo(cx, chestY + 7.dp.toPx())
+                    lineTo(cx - 6.dp.toPx(), chestY)
+                    close()
+                }
+                drawPath(gemPath, color = Color.White.copy(alpha = 0.95f))
+                drawCircle(color = coreColor.copy(alpha = 0.8f), center = Offset(cx, chestY), radius = 9.dp.toPx(), style = Stroke(1.5.dp.toPx()))
+
+                // Right Arm (Resting)
+                val rElbow = Offset(cx + 42.dp.toPx(), cy + 18.dp.toPx())
+                val rHand = Offset(cx + 38.dp.toPx(), cy + 54.dp.toPx())
+                drawLine(coreColor.copy(0.8f), Offset(cx + 32.dp.toPx(), cy - 6.dp.toPx()), rElbow, 2.5.dp.toPx())
+                drawLine(coreColor.copy(0.8f), rElbow, rHand, 2.dp.toPx())
+                drawCircle(coreColor, center = rHand, radius = 3.dp.toPx())
+
+                // Left Arm (Gesturing Hand Wave)
+                val handBob = (sin(Math.toRadians(handGestureAngle.toDouble())) * 14.dp.toPx()).toFloat()
+                val lElbow = Offset(cx - 48.dp.toPx(), cy - 18.dp.toPx())
+                val lWrist = Offset(cx - 64.dp.toPx(), cy - 42.dp.toPx() + handBob)
+                drawLine(coreColor.copy(0.8f), Offset(cx - 32.dp.toPx(), cy - 6.dp.toPx()), lElbow, 2.5.dp.toPx())
+                drawLine(coreColor.copy(0.8f), lElbow, lWrist, 2.dp.toPx())
+
+                val lHandTip = Offset(lWrist.x - 10.dp.toPx(), lWrist.y - 8.dp.toPx())
+                drawLine(coreColor, lWrist, lHandTip, 2.dp.toPx())
+                drawCircle(color = Color.White, center = lHandTip, radius = 3.dp.toPx())
+                drawLine(
+                    brush = Brush.linearGradient(listOf(Color.White, coreColor.copy(alpha = 0.1f))),
+                    start = lHandTip,
+                    end = Offset(hudLeftX + 30.dp.toPx(), hudLeftY + 16.dp.toPx()),
+                    strokeWidth = 1.dp.toPx()
                 )
+
+                // Head, Futuristic Bob Haircut & Face
+                val headCenterY = cy - 36.dp.toPx()
+                val hairPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx - 26.dp.toPx(), headCenterY + 18.dp.toPx())
+                    cubicTo(cx - 32.dp.toPx(), headCenterY - 14.dp.toPx(), cx - 18.dp.toPx(), headCenterY - 32.dp.toPx(), cx, headCenterY - 32.dp.toPx())
+                    cubicTo(cx + 18.dp.toPx(), headCenterY - 32.dp.toPx(), cx + 32.dp.toPx(), headCenterY - 14.dp.toPx(), cx + 26.dp.toPx(), headCenterY + 18.dp.toPx())
+                    lineTo(cx + 20.dp.toPx(), headCenterY + 10.dp.toPx())
+                    cubicTo(cx + 22.dp.toPx(), headCenterY - 18.dp.toPx(), cx - 22.dp.toPx(), headCenterY - 18.dp.toPx(), cx - 20.dp.toPx(), headCenterY + 10.dp.toPx())
+                    close()
+                }
+                drawPath(hairPath, brush = Brush.verticalGradient(listOf(coreColor.copy(0.4f), coreColor.copy(0.15f))))
+                drawPath(hairPath, color = coreColor.copy(alpha = 0.85f), style = Stroke(width = 1.5.dp.toPx()))
+
+                val facePath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx - 16.dp.toPx(), headCenterY - 12.dp.toPx())
+                    lineTo(cx + 16.dp.toPx(), headCenterY - 12.dp.toPx())
+                    lineTo(cx + 12.dp.toPx(), headCenterY + 10.dp.toPx())
+                    lineTo(cx, headCenterY + 20.dp.toPx())
+                    lineTo(cx - 12.dp.toPx(), headCenterY + 10.dp.toPx())
+                    close()
+                }
+                drawPath(facePath, color = coreColor.copy(alpha = 0.22f))
+                drawPath(facePath, color = coreColor.copy(alpha = 0.7f), style = Stroke(width = 1.2.dp.toPx()))
+
+                // Glowing Eyes
+                val eyeY = headCenterY - 2.dp.toPx()
+                drawOval(color = Color.White, topLeft = Offset(cx - 11.dp.toPx(), eyeY), size = androidx.compose.ui.geometry.Size(6.dp.toPx(), 3.5.dp.toPx()))
+                drawCircle(color = coreColor, center = Offset(cx - 8.dp.toPx(), eyeY + 1.7.dp.toPx()), radius = 1.6.dp.toPx())
+                drawOval(color = Color.White, topLeft = Offset(cx + 5.dp.toPx(), eyeY), size = androidx.compose.ui.geometry.Size(6.dp.toPx(), 3.5.dp.toPx()))
+                drawCircle(color = coreColor, center = Offset(cx + 8.dp.toPx(), eyeY + 1.7.dp.toPx()), radius = 1.6.dp.toPx())
+
+                // Dynamic Lip-Sync Mouth
+                val mouthY = headCenterY + 11.dp.toPx()
+                if (state == CoreOrbState.SPEAKING) {
+                    val mouthW = (6f + lipSyncFactor * 5.5f).dp.toPx()
+                    val mouthH = (2f + lipSyncFactor * 6f).dp.toPx()
+                    drawOval(
+                        color = Color.Black.copy(alpha = 0.9f),
+                        topLeft = Offset(cx - mouthW / 2f, mouthY - mouthH / 2f),
+                        size = androidx.compose.ui.geometry.Size(mouthW, mouthH)
+                    )
+                    drawOval(
+                        color = coreColor,
+                        topLeft = Offset(cx - mouthW / 2f, mouthY - mouthH / 2f),
+                        size = androidx.compose.ui.geometry.Size(mouthW, mouthH),
+                        style = Stroke(width = 1.5.dp.toPx())
+                    )
+                } else {
+                    val smile = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(cx - 5.dp.toPx(), mouthY)
+                        quadraticBezierTo(cx, mouthY + 2.dp.toPx(), cx + 5.dp.toPx(), mouthY)
+                    }
+                    drawPath(smile, color = coreColor.copy(alpha = 0.9f), style = Stroke(width = 1.5.dp.toPx()))
+                }
             }
         }
     }
+
+
 }
