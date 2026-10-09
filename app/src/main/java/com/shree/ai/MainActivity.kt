@@ -9,6 +9,9 @@ import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
+import android.media.MediaPlayer
+import java.io.File
+import java.io.FileOutputStream
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -119,6 +122,19 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.cos
 import kotlin.math.sin
 
+enum class AiVoicePersona(
+    val title: String,
+    val gender: String,
+    val elevenLabsVoiceId: String,
+    val ttsPitch: Float,
+    val ttsRate: Float
+) {
+    SHREE("Shree (Female)", "Female", "21m00Tcm4TlvDq8ikWAM", 1.15f, 1.0f),
+    ERA("Era (Female)", "Female", "AZnzlk1XvdvUeBnXmlld", 1.28f, 1.05f),
+    AI("Ai (Male)", "Male", "ErXwobaYiN019PkySvjV", 0.95f, 1.0f),
+    JARVIS("Jarvis (Male)", "Male", "onwK4e9ZLuTAKqWW03F9", 0.80f, 0.95f)
+}
+
 enum class SciFiTheme(
     val title: String,
     val primary: Color,
@@ -171,6 +187,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
     private var activeJob: Job? = null
 
     private var activeAgentJob by mutableStateOf<ActiveAgentJob?>(null)
+    private var mediaPlayer: MediaPlayer? = null
+    private var currentPersona by mutableStateOf(AiVoicePersona.SHREE)
     private var currentTheme by mutableStateOf(SciFiTheme.DEFAULT_CORE)
     private var voicePitch by mutableFloatStateOf(1.15f)
     private var voiceRate by mutableFloatStateOf(1.0f)
@@ -196,6 +214,8 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
         super.onCreate(savedInstanceState)
 
         val prefs = getSharedPreferences("shree_vault", Context.MODE_PRIVATE)
+        val savedPersonaName = prefs.getString("selected_persona", AiVoicePersona.SHREE.name)
+        currentPersona = try { AiVoicePersona.valueOf(savedPersonaName ?: AiVoicePersona.SHREE.name) } catch (_: Exception) { AiVoicePersona.SHREE }
         val savedThemeName = prefs.getString("selected_theme", SciFiTheme.DEFAULT_CORE.name)
         currentTheme = try { SciFiTheme.valueOf(savedThemeName ?: SciFiTheme.DEFAULT_CORE.name) } catch (_: Exception) { SciFiTheme.DEFAULT_CORE }
         voicePitch = prefs.getFloat("voice_pitch", 1.15f)
@@ -745,7 +765,56 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
 
                             Spacer(modifier = Modifier.height(14.dp))
 
-                            Text("🎙️ Natural Voice Tuning", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tempTheme.primary)
+                            Text("🗣️ AI Voice Persona (4 Personas)", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tempTheme.primary)
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            AiVoicePersona.values().forEach { personaOption ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (tempPersona == personaOption) tempTheme.primary.copy(alpha = 0.2f) else Color(0xFF0F172A))
+                                        .clickable { tempPersona = personaOption }
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = if (personaOption.isFemale) "👩" else "👨", fontSize = 14.sp)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(text = personaOption.title, fontSize = 13.sp, color = if (tempPersona == personaOption) tempTheme.primary else Color(0xFFE2E8F0))
+                                            Text(text = "ElevenLabs ID: ${personaOption.elevenLabsVoiceId.take(8)}…", fontSize = 10.sp, color = Color(0xFF64748B))
+                                        }
+                                    }
+                                    if (tempPersona == personaOption) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = tempTheme.primary, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Text("🎙️ ElevenLabs & Voice Calibration", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tempTheme.primary)
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            OutlinedTextField(
+                                value = tempElevenKey,
+                                onValueChange = { tempElevenKey = it },
+                                label = { Text("ElevenLabs API Key (Optional)") },
+                                placeholder = { Text("xi-api-key for ultra-realistic voices", fontSize = 11.sp) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "If empty, on-device synthesized voice calibrated for ${tempPersona.title} will be used.",
+                                fontSize = 10.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
                             Spacer(modifier = Modifier.height(4.dp))
                             Text("Pitch (${String.format(Locale.US, "%.2f", tempPitch)}x - Softer Female)", fontSize = 12.sp, color = Color(0xFF94A3B8))
                             Slider(value = tempPitch, onValueChange = { tempPitch = it }, valueRange = 0.8f..1.5f, colors = SliderDefaults.colors(thumbColor = tempTheme.primary, activeTrackColor = tempTheme.primary))
@@ -754,11 +823,18 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener, Recogniti
                             Slider(value = tempRate, onValueChange = { tempRate = it }, valueRange = 0.6f..1.4f, colors = SliderDefaults.colors(thumbColor = tempTheme.secondary, activeTrackColor = tempTheme.secondary))
 
                             TextButton(onClick = {
-                                tts?.setPitch(tempPitch)
-                                tts?.setSpeechRate(tempRate)
-                                speak("Namaste! I am SHREE. How does my voice sound now?")
+                                val testMsg = when (tempPersona) {
+                                    AiVoicePersona.SHREE -> "Namaste! I am Shree, your personal AI operating system."
+                                    AiVoicePersona.ERA -> "Greetings. I am Era, your futuristic AI assistant."
+                                    AiVoicePersona.AI -> "Hello. I am Ai. Systems fully operational and ready."
+                                    AiVoicePersona.JARVIS -> "At your service, Sir. Jarvis initialized."
+                                }
+                                currentPersona = tempPersona
+                                voicePitch = tempPitch
+                                voiceRate = tempRate
+                                speak(testMsg)
                             }) {
-                                Text("🔊 Test Voice", color = tempTheme.primary)
+                                Text("🔊 Test Voice (${tempPersona.title})", color = tempTheme.primary)
                             }
 
                             Spacer(modifier = Modifier.height(14.dp))
